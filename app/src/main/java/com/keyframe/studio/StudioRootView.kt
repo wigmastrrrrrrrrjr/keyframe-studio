@@ -72,7 +72,15 @@ class StudioRootView(context: Context) : LinearLayout(context) {
     private val undoChip = Chip(context, "↶")
     private val redoChip = Chip(context, "↷")
     private val expandChip = Chip(context, "⤢")
+
+    // welcome tour (first launch only: no saved project yet)
+    private val showWelcomeOnBuild = autosaver.projectFile.let { p -> !p.exists() } && MIN_VERSION.equals(MIN_VERSION)
+    private var welcomeStep = 0
+    private var welcomeHost: FrameLayout? = null
+    private var welcomeCard: FrameLayout? = null
+    private var welcomeBuildWrapped = false
     private var expandedTimeline = false
+    private var autosavedBefore = true
 
     // clip-board for keyframe content
     private var clipboardContent: com.keyframe.studio.engine.Content? = null
@@ -99,6 +107,10 @@ class StudioRootView(context: Context) : LinearLayout(context) {
         buildUi()
         post { canvasView.fitToScreen() }
         autosaver.start()
+        if (!autosaver.projectFile.exists()) {
+            autosavedBefore = false
+        }
+        if (showWelcomeOnBuild) post { showWelcome() }
     }
 
     // ------------------------------------------------------------------
@@ -130,7 +142,141 @@ class StudioRootView(context: Context) : LinearLayout(context) {
     }
 
     // ------------------------------------------------------------------
-    // Wiring
+    // Welcome tour (first-run onboarding on top of the live workspace)
+    // ------------------------------------------------------------------
+
+    private class TourStep(val title: String, val body: String, val chips: String)
+
+    private val tourSteps: List<TourStep> = listOf(
+        TourStep(
+            "Welcome to Keyframe Studio",
+            "A 2D animation studio with vector drawing, raster painting and professional timeline animation.",
+            "keep drawing · frame every idea"
+        ),
+        TourStep(
+            "Canvas",
+            "Draw anywhere on the stage. Two fingers pan, pinch to zoom, and stylus pressure is supported. Two-finger tap on the canvas undoes the last action.",
+            "Pan · Zoom · Pressure"
+        ),
+        TourStep(
+            "Tools",
+            "The dock on the left (top bar in portrait) holds selection, transform, pencil, pen, eraser, line, shapes, fill, text and the eyedropper. Rect and ellipse respect the fill toggle.",
+            "Tap a tool to use it"
+        ),
+        TourStep(
+            "Layers",
+            "Add vector and raster layers, toggle visibility, lock a layer, or reorder with ▲ / ▼. Selection follows the last tapped layer row.",
+            "＋V adds a vector layer"
+        ),
+        TourStep(
+            "Timeline",
+            "The bottom grid is a layer × frame timeline. Tap the ruler to scrub; tap a cell to pick frame + layer. Add keys (＋K), blank keys (◇K), delete (✕K), and tween between keys with ◠T.",
+            "＋K keys the current frame"
+        ),
+        TourStep(
+            "Playback & Export",
+            "The transport bar has play, loop, onion skin, FPS and duration. Undo lives here too. Import images and export PNG / JPG / PNG sequence / SVG.",
+            "Autosave + undo history"
+        ),
+        TourStep(
+            "You're set",
+            "Everything autosaves while you work — come back later and this exact project reopens. Have fun animating!",
+            "got it"
+        )
+    )
+
+    private fun showWelcome() {
+        if (welcomeHost != null) return
+        welcomeStep = 0
+        val host = FrameLayout(context)
+        host.isClickable = true
+        host.background = android.graphics.drawable.GradientDrawable().apply {
+            setColor(0x5E101012)
+        }
+        addView(host, LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
+        welcomeHost = host
+        renderWelcome()
+    }
+
+    private fun dismissWelcome() {
+        welcomeHost?.let { removeView(it) }
+        welcomeHost = null
+        welcomeStep = 0
+    }
+
+    private fun renderWelcome() {
+        val host = welcomeHost ?: return
+        host.removeAllViews()
+        val step = tourSteps[welcomeStep]
+        val last = welcomeStep == tourSteps.size - 1
+        val card = LinearLayout(context)
+        card.orientation = VERTICAL
+        card.setPadding(dip(20), dip(16), dip(20), dip(10))
+        card.background = android.graphics.drawable.GradientDrawable().apply {
+            setColor(Theme.SURFACE)
+            cornerRadius = dip(14).toFloat()
+        }
+        card.elevation = dip(12).toFloat()
+
+        card.addView(TextView(context).apply {
+            text = step.title
+            setTextColor(Theme.TEXT)
+            textSize = 19f
+            typeface = android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.NORMAL)
+        })
+        card.addView(TextView(context).apply {
+            text = step.body
+            setTextColor(Theme.TEXT_DIM)
+            textSize = 14f
+            lineHeightMultiplier = 1.25f
+            setPadding(0, dip(8), 0, dip(10))
+        })
+        card.addView(TextView(context).apply {
+            text = step.chips
+            setTextColor(Theme.ACCENT)
+            textSize = 12f
+            letterSpacing = 0.05f
+        })
+        val next = TextView(context).apply {
+            text = if (last) "Start animating" else "Next"
+            setTextColor(0xFF1B1B1D.toInt())
+            textSize = 15f
+            gravity = Gravity.CENTER
+            typeface = android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.NORMAL)
+            background = android.graphics.drawable.GradientDrawable().apply {
+                setColor(Theme.ACCENT)
+                cornerRadius = dip(10).toFloat()
+            }
+        }
+        next.setOnClickListener {
+            if (last) dismissWelcome()
+            else { welcomeStep++; renderWelcome() }
+        }
+        card.addView(next, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dip(42)).apply {
+            topMargin = dip(12)
+        })
+        card.addView(TextView(context).apply {
+            text = if (welcomeStep == 0) "Skip tour" else "Back"
+            setTextColor(Theme.TEXT_DIM)
+            textSize = 12f
+            gravity = Gravity.CENTER
+            setPadding(0, dip(8), 0, 0)
+            setOnClickListener {
+                if (welcomeStep == 0) dismissWelcome()
+                else { welcomeStep--; renderWelcome() }
+            }
+        }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+
+        val cardLp = FrameLayout.LayoutParams(dip(300), ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.CENTER)
+        host.addView(card, cardLp)
+    }
+
+    private var TextView.lineHeightMultiplier: Float
+        get() = 1f
+        set(v) = setLineSpacing(0f, v)
+
+    // ------------------------------------------------------------------
+    // Project lifecycle
     // ------------------------------------------------------------------
 
     private fun wireModel() {
