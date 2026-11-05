@@ -28,7 +28,7 @@ object CrashReporter {
     fun report(context: Context, module: String, t: Throwable): String {
         val w = StringWriter()
         w.write("Module: $module\n")
-        w.write("Version: ${BuildConfig.VERSION_NAME}\n")
+        w.write("Version: 1.0.x\n")
         w.write("Android: ${android.os.Build.VERSION.SDK_INT} (${android.os.Build.VERSION.RELEASE})\n")
         w.write("Device: ${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL}\n\n")
         var cur: Throwable? = t
