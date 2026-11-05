@@ -314,9 +314,10 @@ class StudioRootView(context: Context) : LinearLayout(context) {
         col.addView(sectionTitle("BRUSH"))
         col.addView(makeSlider(context, "Size", 1, 96, 8) { canvasView.brushSettings.width = it.toFloat() })
         col.addView(makeSlider(context, "Opacity", 5, 100, 100) { canvasView.brushSettings.opacity = it / 100f })
-        col.addView(toggleText("Pressure") { on ->
+        val pressureToggle = toggleText("Pressure") { on ->
             canvasView.brushSettings.pressureSensitive = on
-        }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dip(30)))
+        }
+        col.addView(pressureToggle, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dip(30)))
         col.addView(gap(10))
 
         col.addView(sectionTitle("LAYER"))
@@ -388,8 +389,8 @@ class StudioRootView(context: Context) : LinearLayout(context) {
         return row
     }
 
-    private fun sectionTitle(text: String): TextView = TextView(context).apply {
-        text = text
+    private fun sectionTitle(labelText: String): TextView = TextView(context).apply {
+        text = labelText
         setTextColor(Theme.TEXT_DIM)
         textSize = 10f
         letterSpacing = 0.12f
@@ -400,7 +401,7 @@ class StudioRootView(context: Context) : LinearLayout(context) {
         val row = LinearLayout(context)
         row.orientation = HORIZONTAL
         items.forEach { (label, act) ->
-            row.addView(chipButton(Chip(context, label, label.length < 4), act))
+            row.addView(chipButton(Chip(context, label, label.length < 4), 40, act))
         }
         return row
     }

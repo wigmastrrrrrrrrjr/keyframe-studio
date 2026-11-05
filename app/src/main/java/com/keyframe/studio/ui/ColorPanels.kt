@@ -135,7 +135,7 @@ class SwatchRow @JvmOverloads constructor(
 fun makeSlider(context: Context, label: String, from: Int, to: Int, initial: Int,
                onChange: (Int) -> Unit): LinearLayout {
     val row = LinearLayout(context)
-    row.orientation = HORIZONTAL
+    row.orientation = LinearLayout.HORIZONTAL
     row.gravity = Gravity.CENTER_VERTICAL
     val tv = TextView(context).apply {
         text = label
