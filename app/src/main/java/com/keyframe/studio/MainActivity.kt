@@ -39,7 +39,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun showFatalStartupError(t: Throwable) {
         val text = TextView(this).apply {
-            val sb = StringBuilder("Keyframe Studio failed to start\n\n")
+            val sb = StringBuilder("FATAL ERROR — APP CANNOT START\n\n")
             var cur: Throwable? = t
             while (cur != null) {
                 sb.append("Caused by: ").append(cur).append('\n')

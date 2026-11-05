@@ -59,9 +59,12 @@ class StudioRootView(context: Context) : LinearLayout(context) {
     private val autosaver = Autosaver(File(context.filesDir, "project_keyframe"), { doc })
 
     private val canvasView = CanvasView(context)
-    private val timelineView = TimelineView(context)
-    private val layerPanel = LayerPanel(context)
-    private val colorView = ColorPickerView(context)
+
+    // non-core modules: lazily constructed so a crash there doesn't take
+    // down the whole app — see safeFeature()
+    private val timelineView: TimelineView by lazy { TimelineView(context) }
+    private val layerPanel: LayerPanel by lazy { LayerPanel(context) }
+    private val colorView: ColorPickerView by lazy { ColorPickerView(context) }
     private val toolButtons = mutableMapOf<String, ToolButton>()
     private val propsLabel = TextView(context)
     private val playChip = Chip(context, "▶")
@@ -176,16 +179,22 @@ class StudioRootView(context: Context) : LinearLayout(context) {
     )
 
     private fun showWelcome() {
-        if (welcomeHost != null) return
-        welcomeStep = 0
-        val host = FrameLayout(context)
-        host.isClickable = true
-        host.background = android.graphics.drawable.GradientDrawable().apply {
-            setColor(0x5E101012)
+        try {
+            if (welcomeHost != null) return
+            welcomeStep = 0
+            val host = FrameLayout(context)
+            host.isClickable = true
+            host.background = android.graphics.drawable.GradientDrawable().apply {
+                setColor(0x5E101012)
+            }
+            addView(host, LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
+            welcomeHost = host
+            renderWelcome()
+        } catch (t: Throwable) {
+            welcomeHost?.let { removeView(it) }
+            welcomeHost = null
+            markCrashedFeature("Welcome tour", t)
         }
-        addView(host, LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
-        welcomeHost = host
-        renderWelcome()
     }
 
     private fun dismissWelcome() {
@@ -273,7 +282,9 @@ class StudioRootView(context: Context) : LinearLayout(context) {
         canvasView.doc = doc
         canvasView.renderer = WorkspaceRenderer(doc)
         canvasView.history = history
-        canvasView.onColorChanged = { c -> colorView.setColor(c) }
+        runCatching {
+            canvasView.onColorChanged = { c -> colorView.setColor(c) }
+        }.onFailure { markCrashedFeature("Color", it) }
         canvasView.textTool = TextTool(
             { onOk ->
                 textDialog("Add Text", canvasView.textTool?.lastText ?: "Text", onOk)
@@ -281,23 +292,26 @@ class StudioRootView(context: Context) : LinearLayout(context) {
             canvasView.brushSettings
         )
 
-        timelineView.doc = doc
-        timelineView.callbacks = object : TimelineView.Callbacks {
-            override fun onFrameSelected(frame: Int) {
-                canvasView.invalidateDoc()
-                updateFrameIndicator()
-                updateProps()
-                layerPanel.invalidate()
-            }
+        runCatching {
+            timelineView.doc = doc
+            timelineView.callbacks = object : TimelineView.Callbacks {
+                override fun onFrameSelected(frame: Int) {
+                    canvasView.invalidateDoc()
+                    updateFrameIndicator()
+                    updateProps()
+                    layerPanel.invalidate()
+                }
 
-            override fun onLayerSelected(l: Layer) {
-                canvasView.invalidateDoc()
-                layerPanel.invalidate()
-                updateProps()
+                override fun onLayerSelected(l: Layer) {
+                    canvasView.invalidateDoc()
+                    layerPanel.invalidate()
+                    updateProps()
+                }
             }
-        }
+        }.onFailure { markCrashedFeature("Timeline", it) }
 
-        layerPanel.doc = doc
+        runCatching {
+            layerPanel.doc = doc
         layerPanel.callbacks = object : LayerPanel.Callbacks {
             override fun onLayerSelected(l: Layer) {
                 updateProps()
@@ -319,8 +333,11 @@ class StudioRootView(context: Context) : LinearLayout(context) {
                 moveLayer(from, to)
             }
         }
+        }.onFailure { markCrashedFeature("Layers", it) }
 
-        colorView.onColorChanged = { c -> canvasView.brushSettings.color = c }
+        runCatching {
+            colorView.onColorChanged = { c -> canvasView.brushSettings.color = c }
+        }.onFailure { markCrashedFeature("Color", it) }
     }
 
     private fun restoreOrNewProject(): Document {
@@ -337,6 +354,68 @@ class StudioRootView(context: Context) : LinearLayout(context) {
     }
 
     // ------------------------------------------------------------------
+    // Module guards: each UI module is built behind safeFeature() so a
+    // crash inside one feature disables only that feature and shows a
+    // recovery banner instead of killing the app. Core startup failures
+    // are caught in MainActivity and show the fatal-error screen.
+    // ------------------------------------------------------------------
+
+    private val crashedFeatures = mutableListOf<String>()
+
+    private fun <T : View> safeFeature(name: String, build: () -> T): View =
+        try {
+            build()
+        } catch (t: Throwable) {
+            markCrashedFeature(name, t)
+            TextView(context).apply {
+                text = "⚠  $name unavailable"
+                setTextColor(Theme.TEXT_DIM)
+                textSize = 12f
+                gravity = Gravity.CENTER
+                setBackgroundColor(Theme.SURFACE2)
+                minValueWidth()
+            }
+        }
+
+    private fun TextView.minValueWidth() {
+        minHeight = dip(40)
+        minWidth = dip(64)
+    }
+
+    private fun markCrashedFeature(name: String, t: Throwable) {
+        val entry = "“$name” has crashed on startup: ${t.message ?: t.javaClass.simpleName}"
+        if (crashedFeatures.contains(entry)) return
+        crashedFeatures += entry
+        android.util.Log.e("KeyframeStudio", "module crashed: $name", t)
+        toast("Module disabled: $name")
+        post { showFeatureCrashBanner() }
+    }
+
+    private var crashBanner: FrameLayout? = null
+
+    private fun showFeatureCrashBanner() {
+        crashBanner?.let { removeView(it) }
+        crashBanner = null
+        if (crashedFeatures.isEmpty()) return
+        val names = crashedFeatures.joinToString(" · ") { it.substringBefore(" ") }
+        val banner = TextView(context).apply {
+            text = "An error has happened but the app can still launch with all the other features — $names. This will be fixed in the following updates. (Tap to dismiss)"
+            setTextColor(Theme.TEXT)
+            textSize = 12f
+            setPadding(dip(12), dip(10), dip(12), dip(10))
+            setBackgroundColor(0xFF7A4212.toInt())
+            setOnClickListener {
+                removeView(this)
+                crashBanner = null
+            }
+        }
+        val lp = LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+        lp.bottomMargin = dip(216)
+        addView(banner, lp)
+        crashBanner = banner
+    }
+
+    // ------------------------------------------------------------------
     // Layout building
     // ------------------------------------------------------------------
 
@@ -347,7 +426,7 @@ class StudioRootView(context: Context) : LinearLayout(context) {
         setBackgroundColor(Theme.BG)
 
         if (expandedTimeline) {
-            addView(buildExpandedTimeline())
+            addView(safeFeature("Expanded timeline") { buildExpandedTimeline() })
             postRefresh()
             return
         }
@@ -355,17 +434,17 @@ class StudioRootView(context: Context) : LinearLayout(context) {
         if (isLandscape()) {
             val row = LinearLayout(context)
             row.orientation = HORIZONTAL
-            row.addView(buildToolbarColumn(), LinearLayout.LayoutParams(dip(64), ViewGroup.LayoutParams.MATCH_PARENT))
+            row.addView(safeFeature("Tool dock") { buildToolbarColumn() }, LinearLayout.LayoutParams(dip(64), ViewGroup.LayoutParams.MATCH_PARENT))
             row.addView(canvasView, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f))
-            row.addView(buildSidePanel(), LinearLayout.LayoutParams(dip(240), ViewGroup.LayoutParams.MATCH_PARENT))
+            row.addView(safeFeature("Tool options") { buildSidePanel() }, LinearLayout.LayoutParams(dip(240), ViewGroup.LayoutParams.MATCH_PARENT))
             addView(row, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
-            addView(buildTransportBar())
-            addView(timelineView, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dip(200)))
+            addView(safeFeature("Playback") { buildTransportBar() })
+            addView(safeFeature("Timeline") { timelineView }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dip(200)))
         } else {
-            addView(buildTopBar(), LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dip(62)))
+            addView(safeFeature("Toolbar") { buildTopBar() }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dip(62)))
             addView(canvasView, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
-            addView(buildTransportBar())
-            addView(timelineView, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dip(216)))
+            addView(safeFeature("Playback") { buildTransportBar() })
+            addView(safeFeature("Timeline") { timelineView }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dip(216)))
         }
         postRefresh()
     }
@@ -374,15 +453,17 @@ class StudioRootView(context: Context) : LinearLayout(context) {
         android.content.res.Configuration.ORIENTATION_LANDSCAPE
 
     private fun postRefresh() {
-        updateToolSelection()
-        updateFrameIndicator()
-        updateProps()
-        refreshHistoryChips()
-        loopChip.setAccent(doc.loop)
-        onionChip.setAccent(canvasView.onion.enabled)
-        layerPanel.post { layerPanel.invalidate() }
-        timelineView.post { timelineView.invalidate() }
-        canvasView.post { canvasView.invalidateDoc() }
+        runCatching {
+            updateToolSelection()
+            updateFrameIndicator()
+            updateProps()
+            refreshHistoryChips()
+            loopChip.setAccent(doc.loop)
+            onionChip.setAccent(canvasView.onion.enabled)
+            layerPanel.post { layerPanel.invalidate() }
+            timelineView.post { timelineView.invalidate() }
+            canvasView.post { canvasView.invalidateDoc() }
+        }.onFailure { markCrashedFeature("Refresh", it) }
     }
 
     private class ToolDef(val label: String, val icon: String, val tool: (StudioRootView) -> Tool)
@@ -408,7 +489,8 @@ class StudioRootView(context: Context) : LinearLayout(context) {
         wireModel()
         buildUi()
         post { canvasView.fitToScreen() }
-        autosaver.start()
+        runCatching { autosaver.start() }
+            .onFailure { markCrashedFeature("Autosave", it) }
         if (!autosaver.projectFile.exists()) {
             autosavedBefore = false
         }
