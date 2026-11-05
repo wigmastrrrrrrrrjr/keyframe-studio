@@ -53,7 +53,6 @@ class StudioRootView(context: Context) : LinearLayout(context) {
 
     val doc: Document = restoreOrNewProject()
     private val handler = Handler(Looper.getMainLooper())
-    private fun dip(v: Int) = context.dip(v)
 
     val history = History { refreshHistoryChips() }
     private val autosaver = Autosaver(File(context.filesDir, "project_keyframe"), { doc })
@@ -283,6 +282,12 @@ class StudioRootView(context: Context) : LinearLayout(context) {
         canvasView.renderer = WorkspaceRenderer(doc)
         canvasView.history = history
         runCatching {
+            canvasView.crashReporter = { mod, t ->
+                CrashReporter.log(context, mod, t)
+                post { showRuntimeCrashNotice(mod, t) }
+            }
+        }.onFailure { markCrashedFeature("Drawing", it) }
+        runCatching {
             canvasView.onColorChanged = { c -> colorView.setColor(c) }
         }.onFailure { markCrashedFeature("Color", it) }
         canvasView.textTool = TextTool(
@@ -351,6 +356,49 @@ class StudioRootView(context: Context) : LinearLayout(context) {
                 Document.newProject()
             }
         } else Document.newProject()
+    }
+
+    private val prefs = context.getSharedPreferences("keyframe_prefs", 0)
+    private val uiScale: Float get() = prefs.getFloat("ui_scale", 1f)
+    fun dip(v: Int) = (context.dip(v) * uiScale).toInt()
+
+    private var crashNotice: View? = null
+
+    private fun showRuntimeCrashNotice(module: String, t: Throwable) {
+        crashNotice?.let { removeView(it) }
+        crashNotice = null
+        val bar = LinearLayout(context)
+        bar.orientation = HORIZONTAL
+        bar.gravity = Gravity.CENTER_VERTICAL
+        bar.background = android.graphics.drawable.GradientDrawable().apply {
+            setColor(0xFF481D1D.toInt())
+            cornerRadius = dip(8).toFloat()
+        }
+        bar.setPadding(dip(10), dip(6), dip(10), dip(6))
+        bar.addView(TextView(context).apply {
+            text = "Crash in“$module” detected — report saved in app data"
+            setTextColor(Theme.TEXT)
+            textSize = 12f
+            layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+        })
+        bar.addView(chipButton(Chip(context, "Report")) {
+            runCatching {
+                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(CrashReporter.issueUrl(context, module, t))))
+            }
+            crashNotice?.let { removeView(it) }
+            crashNotice = null
+        })
+        bar.addView(chipButton(Chip(context, "✕")) {
+            crashNotice?.let { removeView(it) }
+            crashNotice = null
+        })
+        val lp = LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+        addView(bar, lp)
+        crashNotice = bar
+    }
+
+    override fun onAttachedToWindow() {
+        super.onAttachedToWindow()
     }
 
     // ------------------------------------------------------------------
@@ -683,9 +731,29 @@ class StudioRootView(context: Context) : LinearLayout(context) {
         bar.addView(chipButton(undoChip) { history.undo() })
         bar.addView(chipButton(redoChip) { history.redo() })
         bar.addView(chipButton(expandChip) { toggleExpand() })
+        bar.addView(chipButton(Chip(context, "💾")) {
+            runCatching { autosaver.saveNow() }
+            toast("Project saved")
+        })
+        bar.addView(chipButton(Chip(context, "⇩")) { exportDialog() })
+        val scaleChip = Chip(context, "S ${uiScalePercent()}%")
+        scaleChip.setOnClickListener {
+            val options = listOf(1f, 0.85f, 0.7f, 0.6f)
+            var next = options[0]
+            for (o in options) if (Math.abs(o - uiScale) < Math.abs(next - uiScale)) next = o
+            val idx = (((options.indexOf(next)) + 1) % options.size)
+            prefs.edit().putFloat("ui_scale", options[idx]).apply()
+            scaleChip.text = "S ${(options[idx] * 100).toInt()}%"
+            toast("UI scale ${(options[idx] * 100).toInt()}%")
+            buildUi()
+            post { canvasView.fitToScreen() }
+        }
+        bar.addView(chipButton(scaleChip))
         bar.addView(View(context), LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f))
         return bar
     }
+
+    private fun uiScalePercent(): Int = (uiScale * 100f + 0.5f).toInt()
 
     private fun buildTimelineRow(): View = timelineView
 

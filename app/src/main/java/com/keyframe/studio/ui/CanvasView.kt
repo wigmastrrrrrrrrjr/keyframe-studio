@@ -231,6 +231,23 @@ class CanvasView @JvmOverloads constructor(
 
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
+        try {
+            drawStageInternal(canvas)
+        } catch (t: Throwable) {
+            crashReporter?.invoke("Canvas render", t)
+            drawCrashed = true
+            if (drawCrashed) {
+                canvas.drawColor(Color.rgb(40, 30, 30))
+                canvas.drawText("⚠ Canvas module crashed (reported)", 40f, 80f, android.graphics.Paint().apply {
+                    textSize = 36f; setARGB(255, 230, 200, 200)
+                })
+            }
+        }
+    }
+
+    private var drawCrashed = false
+
+    private fun drawStageInternal(canvas: Canvas) {
         canvas.drawColor(Color.rgb(28, 28, 30))
         val save = canvas.save()
         canvas.concat(matrix)
@@ -302,7 +319,23 @@ class CanvasView @JvmOverloads constructor(
         invalidate()
     }
 
+    var crashReporter: ((String, Throwable) -> Unit)? = null
+
     override fun onTouchEvent(e: MotionEvent): Boolean {
+        if (crashReporter != null) {
+            try {
+                return onTouchEventInner(e)
+            } catch (t: Throwable) {
+                crashReporter?.invoke("Drawing", t)
+                inStroke = false
+                invalidate()
+                return false
+            }
+        }
+        return onTouchEventInner(e)
+    }
+
+    private fun onTouchEventInner(e: MotionEvent): Boolean {
         if (multiTouchPossible(e)) scaleDetector.onTouchEvent(e)
         gesture.onTouchEvent(e)
 
