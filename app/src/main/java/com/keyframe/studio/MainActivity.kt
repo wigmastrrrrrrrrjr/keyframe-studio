@@ -46,7 +46,7 @@ class MainActivity : AppCompatActivity() {
                 for (e in cur.stackTrace) sb.append("    at ").append(e).append('\n')
                 cur = cur.cause
             }
-            text.text = sb.toString()
+            setText(sb)
             textSize = 12f
             setPadding(24, 48, 24, 24)
             setBackgroundColor(0xFF1B1B1D.toInt())
