@@ -156,7 +156,6 @@ class TransformTool(private val selection: SelectionTool) : Tool("transform", "T
 /** Fill bucket: flood fill on raster layers. */
 class FillTool(var settings: BrushSettings) : Tool("fill", "Fill", "◧") {
     var rasterSource: com.keyframe.studio.engine.RasterContent? = null
-    fun setRasterSource(rc: com.keyframe.studio.engine.RasterContent?) { rasterSource = rc }
 
     override fun onUp(x: Float, y: Float, ctx: ToolContext) {
         val target = rasterSource ?: return

@@ -377,7 +377,7 @@ class CanvasView @JvmOverloads constructor(
                     viewToDoc(e.x, e.y, docPoint)
                     if (tool is FillTool) {
                         val l = doc.activeLayer()
-                        fillTool.setRasterSource(if (l.kind == LayerKind.RASTER)
+                        fillTool.rasterSource = if (l.kind == LayerKind.RASTER)
                             l.ensureRasterFor(doc.currentFrame) else null)
                     }
                     tool.onUp(docPoint.x, docPoint.y, toolCtx)
