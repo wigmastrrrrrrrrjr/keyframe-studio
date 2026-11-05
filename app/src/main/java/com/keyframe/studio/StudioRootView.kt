@@ -391,7 +391,7 @@ class StudioRootView(context: Context) : LinearLayout(context) {
         post { showFeatureCrashBanner() }
     }
 
-    private var crashBanner: FrameLayout? = null
+    private var crashBanner: View? = null
 
     private fun showFeatureCrashBanner() {
         crashBanner?.let { removeView(it) }
