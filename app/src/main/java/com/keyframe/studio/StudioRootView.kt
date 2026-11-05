@@ -100,16 +100,8 @@ class StudioRootView(context: Context) : LinearLayout(context) {
         }
     }
 
-    init {
-        wireModel()
-        buildUi()
-        post { canvasView.fitToScreen() }
-        autosaver.start()
-        if (!autosaver.projectFile.exists()) {
-            autosavedBefore = false
-        }
-        if (showWelcomeOnBuild) post { showWelcome() }
-    }
+    // NOTE: init runs last (block placed after all property declarations on
+    // purpose — buildUi() depends on toolDefs and other late fields)
 
     // ------------------------------------------------------------------
     // Public lifecycle hooks (called by MainActivity)
@@ -408,6 +400,20 @@ class StudioRootView(context: Context) : LinearLayout(context) {
         ToolDef("Text", "Ｔ", { it.canvasView.textTool as Tool }),
         ToolDef("Eyedrop", "◉", { it.canvasView.pickerTool })
     )
+
+    // placed here on purpose: init runs after all properties above it
+    // because Kotlin executes initializers and init blocks in
+    // declaration order — buildUi() (below) iterates toolDefs
+    init {
+        wireModel()
+        buildUi()
+        post { canvasView.fitToScreen() }
+        autosaver.start()
+        if (!autosaver.projectFile.exists()) {
+            autosavedBefore = false
+        }
+        if (showWelcomeOnBuild) post { showWelcome() }
+    }
 
     private fun addToolButton(row: LinearLayout, def: ToolDef, landscape: Boolean) {
         val btn = ToolButton(context, def.icon, def.label)
