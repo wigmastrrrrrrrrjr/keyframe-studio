@@ -16,9 +16,13 @@ android {
     }
 
     buildTypes {
+        // signed with the auto-generated debug key so it's directly
+        // installable without Play Store signing; replace with a real
+        // keystore for store distribution
         release {
             isMinifyEnabled = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"))
+            signingConfig = signingConfigs.getByName("debug")
         }
     }
     compileOptions {
