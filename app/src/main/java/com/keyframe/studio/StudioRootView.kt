@@ -364,7 +364,7 @@ class StudioRootView(context: Context) : LinearLayout(context) {
         return scroll
     }
 
-    private fun toggleText(labelName: String, flip: (Boolean) -> Boolean): TextView {
+    private fun toggleText(labelName: String, apply: (Boolean) -> Unit): TextView {
         var state = false
         val tv = TextView(context)
         tv.text = "$labelName: OFF"
@@ -373,7 +373,7 @@ class StudioRootView(context: Context) : LinearLayout(context) {
         tv.setPadding(dip(10), 0, 0, dip(2))
         tv.setOnClickListener {
             state = !state
-            flip(state)
+            apply(state)
             tv.text = "$labelName: ${if (state) "ON" else "OFF"}"
             tv.setTextColor(if (state) Theme.ACCENT else Theme.TEXT_DIM)
         }
