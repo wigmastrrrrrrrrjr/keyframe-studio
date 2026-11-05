@@ -156,7 +156,7 @@ class Eraser(var settings: BrushSettings) : Tool("eraser", "Eraser", "⌫") {
 
     private fun boundsAt(shape: Shape, r: RectBounds): Boolean {
         val b = shape.bounds()
-        return b.rect.intersects(r.rect.left, r.rect.top, r.rect.right, r.rect.bottom)
+        return b.intersects(r.rect.left, r.rect.top, r.rect.right, r.rect.bottom)
     }
 }
 

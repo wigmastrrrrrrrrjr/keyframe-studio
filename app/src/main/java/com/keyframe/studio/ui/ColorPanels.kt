@@ -4,8 +4,11 @@ import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
+import android.graphics.drawable.StateListDrawable
+import android.util.AttributeSet
 import android.view.Gravity
 import android.view.MotionEvent
+import android.view.View
 import android.widget.LinearLayout
 import android.widget.SeekBar
 import android.widget.TextView
@@ -103,7 +106,7 @@ class SwatchRow @JvmOverloads constructor(
     var onSwatch: ((Int) -> Unit)? = null
 
     init {
-        orientation = HORIZONTAL
+        orientation = LinearLayout.HORIZONTAL
         val colors = listOf(
             -1, -16777216, Color.rgb(230, 70, 70), Color.rgb(240, 140, 60), Color.rgb(235, 200, 70),
             Color.rgb(100, 200, 90), Color.rgb(70, 170, 230), Color.rgb(120, 90, 220), Color.rgb(200, 100, 190),
@@ -113,7 +116,11 @@ class SwatchRow @JvmOverloads constructor(
             addView(TextView(context).apply {
                 val pad = 6
                 setPadding(pad, pad, pad, pad)
-                background = android.util.StateListDrawable().apply { addState(intArrayOf(), android.graphics.drawable.GradientDrawable().apply { setColor(c); cornerRadius = 10f }) }
+                background = StateListDrawable().apply {
+                    addState(intArrayOf(), android.graphics.drawable.GradientDrawable().apply {
+                        setColor(c); cornerRadius = 10f
+                    })
+                }
                 textSize = 28f
                 gravity = Gravity.CENTER
                 minWidth = 72

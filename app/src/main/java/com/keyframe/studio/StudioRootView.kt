@@ -43,6 +43,7 @@ import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import java.util.UUID
 
 /**
  * Top-level workspace composition: toolbar + canvas + layer/color panel +
@@ -410,7 +411,7 @@ class StudioRootView(context: Context) : LinearLayout(context) {
 
     /** Wraps a chip with padding + click handler.
      * @param size chip square size in dp */
-    private fun chipButton(chip: Chip, action: (() -> Unit)?, size: Int = 40): View {
+    private fun chipButton(chip: Chip, size: Int = 40, action: (() -> Unit)? = null): View {
         val wrap = FrameLayout(context)
         val lp = FrameLayout.LayoutParams(dip(size), dip(size))
         lp.setMargins(dip(2), 0, dip(2), 0)
@@ -430,7 +431,7 @@ class StudioRootView(context: Context) : LinearLayout(context) {
         bar.gravity = Gravity.CENTER_VERTICAL
 
         playChip.setOnClickListener { togglePlay() }
-        bar.addView(chipButton(playChip, null, 38))
+        bar.addView(chipButton(playChip, 38, null))
         bar.addView(chipButton(loopChip) { doc.loop = !doc.loop; loopChip.setAccent(doc.loop) })
         bar.addView(chipButton(onionChip) {
             canvasView.onion.enabled = !canvasView.onion.enabled

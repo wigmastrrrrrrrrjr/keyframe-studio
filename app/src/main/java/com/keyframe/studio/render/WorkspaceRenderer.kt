@@ -62,7 +62,7 @@ class WorkspaceRenderer(val doc: Document) {
         val p = Paint()
         p.color = tint
         p.alpha = (alpha * 255).toInt()
-        p.xfermode = PorterDuffXfermode(PorterDuff.Mode.ATOP)
+        p.xfermode = PorterDuffXfermode(PorterDuff.Mode.SRC_ATOP)
         canvas.drawRect(0f, 0f, doc.width.toFloat(), doc.height.toFloat(), p)
         canvas.restoreToCount(save)
     }

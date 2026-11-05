@@ -40,7 +40,7 @@ class Layer(
     var locked = false
     var opacity = 1f
     var layerMask: RasterContent? = null
-    val keyframes = sortedMapOf<Int, Keyframe>()
+    val keyframes = java.util.TreeMap<Int, Keyframe>()
 
     fun frameAt(index: Int): Keyframe? = keyframes.floorEntry(index).takeIf { it.key <= index }?.value
 

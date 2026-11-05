@@ -55,6 +55,7 @@ class TimelineView @JvmOverloads constructor(
     }
 
     var scrollX = 0f
+    var scrollY = 0f
     private fun maxScroll(): Float {
         val d = doc ?: return 0f
         val visible = (width - layerW) / frameWidth

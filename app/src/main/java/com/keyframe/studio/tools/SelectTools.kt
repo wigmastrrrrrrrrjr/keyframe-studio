@@ -37,7 +37,7 @@ class SelectionTool : Tool("select", "Select", "⬚") {
                 if (hit != null) sel.add(hit)
             } else {
                 sel.clear()
-                vc.shapes.forEach { if (it.bounds().rect.intersects(r.left, r.top, r.right, r.bottom)) sel.add(it) }
+                vc.shapes.forEach { if (it.bounds().intersects(r.left, r.top, r.right, r.bottom)) sel.add(it) }
             }
         }
         ctx.setDirty()

@@ -28,11 +28,5 @@ class History(private val onChange: (Boolean) -> Unit) {
         if (canRedo) { index++; stack[index].redo(); onChange(false) }
     }
 
-    /** Convenience: capture a mutable piece of state snapshot-wise. */
-    inline fun <T> recordSnapshot(name: String, before: () -> T, redo: () -> Unit, restore: (T) -> Unit) {
-        val old = before()
-        push(name, { restore(old) }, redo)
-    }
-
     companion object { const val MAX = 60 }
 }

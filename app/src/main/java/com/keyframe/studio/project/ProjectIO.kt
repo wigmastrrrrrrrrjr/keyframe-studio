@@ -184,9 +184,9 @@ object ProjectIO {
             if (!l.visible) continue
             sb.append("<g opacity=\"%.2f\">\n".format(l.opacity))
             for (sh in content.shapes) {
-                val s = sh.style
-                val stroke = colorHex(s.color)
-                val fill = colorHex(s.fillColor)
+                val st = sh.style
+                val stroke = colorHex(st.color)
+                val fill = colorHex(st.fillColor)
                 when (sh) {
                     is com.keyframe.studio.engine.PathShape -> {
                         if (sh.segments.isEmpty()) continue
@@ -194,35 +194,35 @@ object ProjectIO {
                         sh.segments.forEach {
                             d.append("M ${it.sx} ${it.sy} C ${it.c1x} ${it.c1y} ${it.c2x} ${it.c2y} ${it.ex} ${it.ey} ")
                         }
-                        if (s.filled) sb.append("<path d=\"$d\" fill=\"$fill\"/>\n")
+                        if (st.filled) sb.append("<path d=\"$d\" fill=\"$fill\"/>\n")
                         else sb.append(
                             "<path d=\"$d\" fill=\"none\" stroke=\"$stroke\" " +
-                                "stroke-opacity=\"%.2f\" stroke-width=\"${s.width}\" stroke-linecap=\"round\"/>\n"
-                                .format(s.opacity)
+                                "stroke-opacity=\"%.2f\" stroke-width=\"${st.width}\" stroke-linecap=\"round\"/>\n"
+                                .format(st.opacity)
                         )
                     }
                     is com.keyframe.studio.engine.RectShape ->
                         sb.append(
-                            "<rect x=\"${s.x}\" y=\"${s.y}\" width=\"${s.w}\" height=\"${s.h}\" " +
-                                "fill=\"${if (s.filled) fill else "none"}\" " +
-                                (if (!s.filled) "stroke=\"$stroke\" stroke-width=\"${s.width}\"" else "") + "/>\n"
+                            "<rect x=\"${sh.x}\" y=\"${sh.y}\" width=\"${sh.w}\" height=\"${sh.h}\" " +
+                                "fill=\"${if (st.filled) fill else "none"}\" " +
+                                (if (!st.filled) "stroke=\"$stroke\" stroke-width=\"${st.width}\"" else "") + "/>\n"
                         )
                     is com.keyframe.studio.engine.EllipseShape ->
                         sb.append(
-                            "<ellipse cx=\"${s.x + s.w / 2}\" cy=\"${s.y + s.h / 2}\" " +
-                                "rx=\"${s.w / 2}\" ry=\"${s.h / 2}\" " +
-                                "fill=\"${if (s.filled) fill else "none"}\" " +
-                                (if (!s.filled) "stroke=\"$stroke\" stroke-width=\"${s.width}\"" else "") + "/>\n"
+                            "<ellipse cx=\"${sh.x + sh.w / 2}\" cy=\"${sh.y + sh.h / 2}\" " +
+                                "rx=\"${sh.w / 2}\" ry=\"${sh.h / 2}\" " +
+                                "fill=\"${if (st.filled) fill else "none"}\" " +
+                                (if (!st.filled) "stroke=\"$stroke\" stroke-width=\"${st.width}\"" else "") + "/>\n"
                         )
                     is com.keyframe.studio.engine.LineShape ->
                         sb.append(
-                            "<line x1=\"${s.x1}\" y1=\"${s.y1}\" x2=\"${s.x2}\" y2=\"${s.y2}\" " +
-                                "stroke=\"$stroke\" stroke-width=\"${s.width}\" stroke-linecap=\"round\"/>\n"
+                            "<line x1=\"${sh.x1}\" y1=\"${sh.y1}\" x2=\"${sh.x2}\" y2=\"${sh.y2}\" " +
+                                "stroke=\"$stroke\" stroke-width=\"${st.width}\" stroke-linecap=\"round\"/>\n"
                         )
                     is com.keyframe.studio.engine.TextShape ->
                         sb.append(
-                            "<text x=\"${s.x}\" y=\"${s.y}\" font-size=\"${s.size}\" fill=\"$stroke\">" +
-                                escaped(s.text) + "</text>\n"
+                            "<text x=\"${sh.x}\" y=\"${sh.y}\" font-size=\"${sh.size}\" fill=\"$stroke\">" +
+                                escaped(sh.text) + "</text>\n"
                         )
                 }
             }
