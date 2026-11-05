@@ -74,11 +74,9 @@ class StudioRootView(context: Context) : LinearLayout(context) {
     private val expandChip = Chip(context, "⤢")
 
     // welcome tour (first launch only: no saved project yet)
-    private val showWelcomeOnBuild = autosaver.projectFile.let { p -> !p.exists() } && MIN_VERSION.equals(MIN_VERSION)
+    private val showWelcomeOnBuild = !autosaver.projectFile.exists()
     private var welcomeStep = 0
     private var welcomeHost: FrameLayout? = null
-    private var welcomeCard: FrameLayout? = null
-    private var welcomeBuildWrapped = false
     private var expandedTimeline = false
     private var autosavedBefore = true
 
