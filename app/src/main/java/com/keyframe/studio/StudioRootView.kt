@@ -738,15 +738,21 @@ class StudioRootView(context: Context) : LinearLayout(context) {
         bar.addView(chipButton(Chip(context, "⇩")) { exportDialog() })
         val scaleChip = Chip(context, "S ${uiScalePercent()}%")
         scaleChip.setOnClickListener {
-            val options = listOf(1f, 0.85f, 0.7f, 0.6f)
-            var next = options[0]
-            for (o in options) if (Math.abs(o - uiScale) < Math.abs(next - uiScale)) next = o
-            val idx = (((options.indexOf(next)) + 1) % options.size)
-            prefs.edit().putFloat("ui_scale", options[idx]).apply()
-            scaleChip.text = "S ${(options[idx] * 100).toInt()}%"
-            toast("UI scale ${(options[idx] * 100).toInt()}%")
-            buildUi()
-            post { canvasView.fitToScreen() }
+            try {
+                val options = listOf(1f, 0.85f, 0.7f, 0.6f)
+                var next = options[0]
+                for (o in options) if (Math.abs(o - uiScale) < Math.abs(next - uiScale)) next = o
+                val idx = (((options.indexOf(next)) + 1) % options.size)
+                prefs.edit().putFloat("ui_scale", options[idx]).apply()
+                scaleChip.text = "S ${(options[idx] * 100).toInt()}%"
+                toast("UI scale ${(options[idx] * 100).toInt()}%")
+                buildUi()
+                post { canvasView.fitToScreen() }
+            } catch (t: Throwable) {
+                markCrashedFeature("UI scale", t)
+                CrashReporter.log(context, "UI scale", t)
+                showRuntimeCrashNotice("UI scale", t)
+            }
         }
         bar.addView(chipButton(scaleChip))
         bar.addView(View(context), LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f))

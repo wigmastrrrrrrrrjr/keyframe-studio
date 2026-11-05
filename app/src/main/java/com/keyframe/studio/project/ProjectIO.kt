@@ -115,12 +115,15 @@ object ProjectIO {
                     val bmp = if (fn.isNotEmpty()) {
                         val f = File(dir, "raster/$fn")
                         val d = android.graphics.BitmapFactory.decodeFile(f.absolutePath)
-                        if (d != null && (d.width != doc.width || d.height != doc.height)) {
+                        // decoded PNGs are immutable: drawing on them throws,
+                        // so always hand back a mutable copy
+                        val dMutable = d?.copy(android.graphics.Bitmap.Config.ARGB_8888, true) ?: d
+                        if (dMutable != null && (dMutable.width != doc.width || dMutable.height != doc.height)) {
                             val normalized = Bitmap.createBitmap(doc.width, doc.height, Bitmap.Config.ARGB_8888)
-                            Canvas(normalized).drawBitmap(d, 0f, 0f, null)
-                            d.recycle()
+                            Canvas(normalized).drawBitmap(dMutable, 0f, 0f, null)
+                            dMutable.recycle()
                             normalized
-                        } else d
+                        } else dMutable
                     } else null
                     if (fn.isNotEmpty()) rasterRefs[rasterKey(l.id, idx)] = fn.substringBefore(".png")
                     RasterContent(doc.width, doc.height).also { rc ->
